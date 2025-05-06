@@ -45,14 +45,14 @@ conn = create_mysql_engine("creds.json")
 q_agg = '''SELECT ffa.name "Name",  fa.fid 'FID', fa.farmer_nid 'NID', ffa.phone "Phone Number",ffbr.fathers_name "Father/Husband",
 fbi.bank_name "Bank Name" ,fbi.branch_name "Branch" ,fbi.routing_number "Rounting No." ,fbi.account_number "Account No.",
 fa.guarantor_name "Guarantors' Name", fa.guarantor_nid "Guarantors' NID", fa.guarantor_phone "Guarantors' Phone",
-fa.project_name "Project Name", ffa.project_duration "Project Duration",fa.loan_amt "Fund Requirement", fa.wegro_service "Wegro ROI (%%)", fa.bank_service "Bank ROI (%%)",fa.input_amt "Input Amount",
+ffa.project_type "Project Name", ffa.project_duration "Project Duration",fa.loan_amt "Fund Requirement", fa.wegro_service "Wegro ROI (%%)", fa.bank_service "Bank ROI (%%)",fa.input_amt "Input Amount",
 fhd.district "Area", fhd.name_en "FO Name" from f_aggrement fa 
 left join f_bank_info fbi on fbi.nid = fa.farmer_nid 
 left join f_farmers_assesment ffa on ffa.fid = fa.fid 
 left join fo_hiararchy_details fhd on fhd.id = ffa.fo_id 
 left join f_farmers_bank_requirement ffbr on ffbr.id = ffa.id  '''
 
-df = pd.read_sql(q_agg, conn)
+df_main = pd.read_sql(q_agg, conn).drop_duplicates(subset=['FID','Project Name'])
 
 # project = 'Maize Harvest -  ভুট্টা'
 # fo_name = 'Abdul Karim'
@@ -61,16 +61,20 @@ df = pd.read_sql(q_agg, conn)
 st.title("Sanction Letter Generator")
 
 with st.sidebar:
-    project = st.selectbox("Enter Project Name",df['Project Name'].unique())
-    area = st.selectbox("Select Area", df['Area'].unique())
-    fo_name = st.selectbox("Select FO Name", df['FO Name'].unique())
-    farmers_nid = st.multiselect("Select Farmers NID", df[(df['Project Name']==project) & (df['FO Name']==fo_name)]['NID'].unique())
+    project = st.selectbox("Enter Project Name",df_main['Project Name'].unique())
+    area = st.selectbox("Select Area", df_main['Area'].unique())
+    fo_name = st.selectbox("Select FO Name", df_main['FO Name'].unique())
+    farmers_nid = st.multiselect("Select Farmers NID", df_main[(df_main['Project Name']==project) & (df_main['FO Name']==fo_name)]['NID'].unique())
     groupname = st.text_input("Enter Group Name")
     prev = st.button("Preview")
 
 
 
-df = df[(df['Project Name']==project) & (df['Area']==area) & (df['FO Name']==fo_name) & (df['NID'].isin(farmers_nid))]
+df = df_main.copy()
+df = df[df['Project Name']==project]
+df = df[df['Area']==area]
+df = df[df['FO Name']==fo_name]
+df = df[df['NID'].isin(farmers_nid)]
 rm_name = pd.read_sql(f"select * from fo_hiararchy_details where district  = '{area}' ", conn)['reporting_rm'].values[0]
 
 
